@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Welcome to the Social Blog</h1>
+
+  {% if current_user.is_authenticated %}
+    <p>Hello, {{ current_user.username }}! 🎉</p>
+    <p>You can now write posts and share with others.</p>
+  {% else %}
+    <p>Please <a href="{{ url_for('auth.login') }}">log in</a> 
+       or <a href="{{ url_for('auth.register') }}">register</a>.</p>
+  {% endif %}
+{% endblock %}
