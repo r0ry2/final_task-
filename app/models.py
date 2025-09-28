@@ -5,6 +5,8 @@ from flask import current_app, abort
 from . import db, login_manager
 from functools import wraps
 from datetime import datetime
+from markdown import markdown
+import bleach
 
 
 # ---------------- Permissions ----------------
@@ -66,6 +68,9 @@ class User(UserMixin, db.Model):
     member_since = db.Column(db.DateTime(), default=db.func.now())
     last_seen = db.Column(db.DateTime(), default=db.func.now())
 
+    # علاقة مع Post
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
+
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
         if self.role is None:
@@ -121,6 +126,40 @@ class User(UserMixin, db.Model):
         return f"<User {self.username}>"
 
 
+# ---------------- Post Model ----------------
+class Post(db.Model):
+    __tablename__ = 'posts'
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
+    body_html = db.Column(db.Text)   # محفوظ كـ HTML معالج
+    timestamp = db.Column(db.DateTime, index=True, default=db.func.now())
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    def __repr__(self):
+        return f"<Post {self.id}>"
+
+    @staticmethod
+    def on_changed_body(target, value, oldvalue, initiator):
+        # تحويل Markdown إلى HTML وتنظيفه بـ bleach
+        allowed_tags = [
+            'a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i',
+            'li', 'ol', 'pre', 'strong', 'ul', 'h1', 'h2', 'h3', 'p'
+        ]
+        allowed_attrs = {
+            'a': ['href', 'rel', 'title'],
+            'abbr': ['title'],
+            'acronym': ['title']
+        }
+        html = markdown(value or '', output_format='html')
+        target.body_html = bleach.clean(
+            html, tags=allowed_tags, attributes=allowed_attrs, strip=True
+        )
+
+
+# اربط event listener تلقائيًا لتوليد body_html عند تعديل body
+db.event.listen(Post.body, 'set', Post.on_changed_body)
+
+
 # ---------------- Helpers ----------------
 def permission_required(permission):
     def decorator(f):
@@ -131,6 +170,7 @@ def permission_required(permission):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
 
 def admin_required(f):
     return permission_required(Permission.ADMIN)(f)

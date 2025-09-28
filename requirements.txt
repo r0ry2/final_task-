@@ -4,4 +4,7 @@ Flask-WTF
 Flask-Login
 Flask-Bootstrap
 email-validator
+markdown
+bleach
+Faker
 
