@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>{{ user.username }}</h2>
+  {% if user.name %}
+    <p><strong>Name:</strong> {{ user.name }}</p>
+  {% endif %}
+  {% if user.location %}
+    <p><strong>Location:</strong> {{ user.location }}</p>
+  {% endif %}
+  {% if user.bio %}
+    <p><strong>About:</strong> {{ user.bio }}</p>
+  {% endif %}
+  <p><strong>Member since:</strong> {{ user.member_since.strftime('%Y-%m-%d') }}</p>
+  <p><strong>Last seen:</strong> {{ user.last_seen.strftime('%Y-%m-%d %H:%M') }}</p>
+{% endblock %}

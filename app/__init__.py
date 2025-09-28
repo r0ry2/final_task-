@@ -10,6 +10,9 @@ login_manager.login_view = "auth.login"
 migrate = Migrate()
 mail = Mail()   # ✅ جديد
 
+
+
+
 def create_app():
     app = Flask(__name__)
     app.config['SECRET_KEY'] = 'secret-key'
