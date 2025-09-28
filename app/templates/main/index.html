@@ -1,38 +1,46 @@
 {% extends "base.html" %}
 {% block content %}
-  <h1>Welcome to the Social Blog</h1>
+  <h2 class="mb-4">All Posts</h2>
 
   {% if form %}
-  <div class="new-post">
-    <h3>New Post</h3>
-    <form method="POST">
-      {{ form.hidden_tag() }}
-      <p>{{ form.body(rows=4, cols=60) }}</p>
-      <p>{{ form.submit(class="btn btn-primary") }}</p>
-    </form>
-  </div>
-  <hr>
+    <div class="card mb-4">
+      <div class="card-body">
+        <form method="POST">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.body.label(class="form-label") }}
+            {{ form.body(class="form-control", rows=3) }}
+          </div>
+          <button type="submit" class="btn btn-primary">Post</button>
+        </form>
+      </div>
+    </div>
   {% endif %}
 
-  {% include "main/_posts.html" %}
-  
-  {# Pagination controls #}
-  {% if pagination.pages > 1 %}
-  <nav aria-label="Page navigation">
-    <ul class="pagination">
+  {% for post in posts %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <h5 class="card-title">{{ post.author.username }}</h5>
+        <p class="card-text">{{ post.body_html | safe }}</p>
+        <p class="text-muted small">{{ post.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+        <a href="{{ url_for('main.post', id=post.id) }}" class="btn btn-sm btn-outline-secondary">View</a>
+        {% if current_user.is_authenticated and (current_user == post.author or current_user.is_administrator()) %}
+          <a href="{{ url_for('main.edit_post', id=post.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+
+  <!-- ✅ Pagination -->
+  <nav>
+    <ul class="pagination justify-content-center">
       {% if pagination.has_prev %}
-        <li><a href="{{ url_for('main.index', page=pagination.prev_num) }}">&laquo; Prev</a></li>
-      {% else %}
-        <li class="disabled"><span>&laquo; Prev</span></li>
+        <li class="page-item"><a class="page-link" href="{{ url_for('main.index', page=pagination.prev_num) }}">« Prev</a></li>
       {% endif %}
-      <li> Page {{ pagination.page }} / {{ pagination.pages }} </li>
+      <li class="page-item disabled"><a class="page-link">Page {{ pagination.page }} of {{ pagination.pages }}</a></li>
       {% if pagination.has_next %}
-        <li><a href="{{ url_for('main.index', page=pagination.next_num) }}">Next &raquo;</a></li>
-      {% else %}
-        <li class="disabled"><span>Next &raquo;</span></li>
+        <li class="page-item"><a class="page-link" href="{{ url_for('main.index', page=pagination.next_num) }}">Next »</a></li>
       {% endif %}
     </ul>
   </nav>
-  {% endif %}
-
 {% endblock %}
