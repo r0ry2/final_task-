@@ -57,29 +57,32 @@ def change_password():
     form = ChangePasswordForm()
     if form.validate_on_submit():
         if not current_user.verify_password(form.old_password.data):
-            flash('❌ Wrong current password.')
+            flash(' Wrong current password.')
             return redirect(url_for('auth.change_password'))
         current_user.password = form.new_password.data
         db.session.commit()
-        flash('✅ Your password has been updated.')
+        flash('Your password has been updated.')
         return redirect(url_for('main.user_profile', username=current_user.username))
     return render_template('auth/change_password.html', form=form)
 
 
-@auth.route('/account', methods=['GET', 'POST'])
-@login_required
-def account():
-    form = EditProfileForm(obj=current_user)
+@auth.route('/login', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
     if form.validate_on_submit():
-        current_user.username = form.username.data
-        current_user.email = form.email.data
-        current_user.name = form.name.data
-        current_user.location = form.location.data
-        current_user.bio = form.bio.data
-        db.session.commit()
-        flash("Your profile has been updated.")
-        return redirect(url_for('auth.account'))
-    return render_template("auth/account.html", form=form)
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and user.verify_password(form.password.data):
+            login_user(user, form.remember.data)
+
+            #  إذا المستخدم أدمن → لوحة التحكم
+            if user.is_administrator():
+                return redirect(url_for('admin.dashboard'))
+
+            #  إذا مستخدم عادي → الصفحة الرئيسية
+            return redirect(url_for('main.index'))
+
+        flash("Invalid email or password.")
+    return render_template("auth/login.html", form=form)
 
 
 @auth.before_app_request
@@ -98,6 +101,7 @@ def unconfirmed():
         return redirect(url_for('main.index'))
     return render_template('auth/unconfirmed.html')
 
+
 @auth.route('/resend')
 @login_required
 def resend_confirmation():
@@ -106,6 +110,7 @@ def resend_confirmation():
                'auth/email/confirm', user=current_user, token=token)
     flash('A new confirmation email has been sent to you by email.')
     return redirect(url_for('main.index'))
+
 
 @auth.route('/register', methods=['GET', 'POST'])
 def register():
@@ -123,17 +128,6 @@ def register():
         return redirect(url_for('auth.login'))
     return render_template("auth/register.html", form=form)
 
-
-@auth.route('/login', methods=['GET', 'POST'])
-def login():
-    form = LoginForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if user and user.verify_password(form.password.data):
-            login_user(user, form.remember.data)
-            return redirect(url_for('main.index'))
-        flash("Invalid email or password.")
-    return render_template("auth/login.html", form=form)
 
 @auth.route('/confirm/<token>')
 def confirm(token):
@@ -153,6 +147,7 @@ def confirm(token):
         flash('Confirmation failed. Please try again.')
     return redirect(url_for('main.index'))
 
+
 @auth.route('/logout')
 @login_required
 def logout():
@@ -160,15 +155,15 @@ def logout():
     flash("You have been logged out.")
     return redirect(url_for('main.index'))
 
+
 @auth.route('/dashboard')
 @login_required
 def dashboard():
     return f"Welcome, {current_user.username}! This is your dashboard."
+
 
 @auth.route('/admin-only')
 @login_required
 @admin_required
 def admin_only():
     return "This page is for administrators only!"
-
-

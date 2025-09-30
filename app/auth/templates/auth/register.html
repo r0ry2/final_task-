@@ -1,12 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
-<h2>Register</h2>
-<form method="POST">
-  {{ form.hidden_tag() }}
-  {{ form.username.label }} {{ form.username() }}<br>
-  {{ form.email.label }} {{ form.email() }}<br>
-  {{ form.password.label }} {{ form.password() }}<br>
-  {{ form.password2.label }} {{ form.password2() }}<br>
-  {{ form.submit() }}
-</form>
+  <h2>Register</h2>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+
+    {{ form.username.label }}<br>
+    {{ form.username(size=32) }}<br>
+
+    {{ form.email.label }}<br>
+    {{ form.email(size=32) }}<br>
+
+    {{ form.password.label }}<br>
+    {{ form.password(size=32) }}<br>
+
+    {{ form.password2.label }}<br>
+    {{ form.password2(size=32) }}<br>
+
+    {{ form.submit() }}
+  </form>
+
+  <!-- لعرض رسائل الخطأ -->
+  {% for field, errors in form.errors.items() %}
+    {% for error in errors %}
+      <p style="color:red;">Error in {{ field }}: {{ error }}</p>
+    {% endfor %}
+  {% endfor %}
 {% endblock %}

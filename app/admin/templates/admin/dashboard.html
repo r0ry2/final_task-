@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>🛠 Admin Dashboard</h2>
+<p>Total Users: {{ users_count }}</p>
+<p>Total Posts: {{ posts_count }}</p>
+
+<a href="{{ url_for('admin.manage_users') }}">👥 Manage Users</a> |
+<a href="{{ url_for('admin.manage_posts') }}">📝 Manage Posts</a>
+{% endblock %}
