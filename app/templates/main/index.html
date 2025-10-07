@@ -2,6 +2,19 @@
 {% block content %}
   <h2 class="mb-4">All Posts</h2>
 
+  {# ✅ أزرار التبديل بين عرض جميع المنشورات أو فقط المتابعين #}
+  {% if current_user.is_authenticated %}
+    <div class="mb-3">
+      {% if show_followed %}
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.show_all') }}">Show All Posts</a>
+        <span class="ms-2 text-muted">Currently showing posts from people you follow</span>
+      {% else %}
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.show_followed') }}">Show Followed Posts</a>
+        <span class="ms-2 text-muted">Showing posts from everyone</span>
+      {% endif %}
+    </div>
+  {% endif %}
+
   {% if form %}
     <div class="card mb-4">
       <div class="card-body">

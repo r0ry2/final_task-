@@ -51,6 +51,14 @@ class Role(db.Model):
         return f"<Role {self.name}>"
 
 
+# ---------------- كلاس المتابعة (Follow Relationship) ----------------
+class Follow(db.Model):
+    __tablename__ = 'follows'
+    follower_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    followed_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 # ---------------- User Model ----------------
 class User(UserMixin, db.Model):
     __tablename__ = "users"
@@ -68,8 +76,9 @@ class User(UserMixin, db.Model):
     member_since = db.Column(db.DateTime(), default=db.func.now())
     last_seen = db.Column(db.DateTime(), default=db.func.now())
 
-    # علاقة مع Post
+    # العلاقات
     posts = db.relationship('Post', backref='author', lazy='dynamic')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic')
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -78,6 +87,56 @@ class User(UserMixin, db.Model):
                 self.role = Role.query.filter_by(name='Administrator').first()
             if self.role is None:
                 self.role = Role.query.filter_by(default=True).first()
+
+    # ---------------- علاقات المتابعة ----------------
+    followed = db.relationship(
+        'Follow',
+        foreign_keys=[Follow.follower_id],
+        backref=db.backref('follower', lazy='joined'),
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+
+    followers = db.relationship(
+        'Follow',
+        foreign_keys=[Follow.followed_id],
+        backref=db.backref('followed', lazy='joined'),
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+
+    # ---------------- دوال المساعدة ----------------
+    def follow(self, user):
+        if not self.is_following(user):
+            f = Follow(follower=self, followed=user)
+            db.session.add(f)
+
+    def unfollow(self, user):
+        f = self.followed.filter_by(followed_id=user.id).first()
+        if f:
+            db.session.delete(f)
+
+    def is_following(self, user):
+        return self.followed.filter_by(followed_id=user.id).first() is not None
+
+    def is_followed_by(self, user):
+        return self.followers.filter_by(follower_id=user.id).first() is not None
+
+    # ---------------- إحضار منشورات المتابعين ----------------
+    @property
+    def followed_posts(self):
+        """Return posts written by users this user follows"""
+        return Post.query.join(Follow, Follow.followed_id == Post.author_id)\
+                         .filter(Follow.follower_id == self.id)
+
+    @staticmethod
+    def add_self_follows():
+        """Make every user follow themselves"""
+        for user in User.query.all():
+            if not user.is_following(user):
+                user.follow(user)
+                db.session.add(user)
+        db.session.commit()
 
     # ---------------- Permissions ----------------
     def can(self, perm):
@@ -131,16 +190,16 @@ class Post(db.Model):
     __tablename__ = 'posts'
     id = db.Column(db.Integer, primary_key=True)
     body = db.Column(db.Text)
-    body_html = db.Column(db.Text)   # محفوظ كـ HTML معالج
+    body_html = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, index=True, default=db.func.now())
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    comments = db.relationship('Comment', backref='post', lazy='dynamic')
 
     def __repr__(self):
         return f"<Post {self.id}>"
 
     @staticmethod
     def on_changed_body(target, value, oldvalue, initiator):
-        # تحويل Markdown إلى HTML وتنظيفه بـ bleach
         allowed_tags = [
             'a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i',
             'li', 'ol', 'pre', 'strong', 'ul', 'h1', 'h2', 'h3', 'p'
@@ -156,8 +215,41 @@ class Post(db.Model):
         )
 
 
-# اربط event listener تلقائيًا لتوليد body_html عند تعديل body
 db.event.listen(Post.body, 'set', Post.on_changed_body)
+
+
+# ---------------- Comment Model ----------------
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
+    body_html = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    disabled = db.Column(db.Boolean, default=False)
+
+    # 🔗 العلاقات
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
+
+    def __repr__(self):
+        return f"<Comment {self.id}>"
+
+    @staticmethod
+    def on_changed_body(target, value, oldvalue, initiator):
+        """تحويل Markdown إلى HTML وتنظيفه قبل الحفظ"""
+        allowed_tags = [
+            'a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i',
+            'li', 'ol', 'pre', 'strong', 'ul', 'p'
+        ]
+        allowed_attrs = {'a': ['href', 'rel', 'title']}
+        html = markdown(value or '', output_format='html')
+        target.body_html = bleach.clean(
+            html, tags=allowed_tags, attributes=allowed_attrs, strip=True
+        )
+
+
+# ✅ تشغيل الحدث تلقائيًا عند تعديل body
+db.event.listen(Comment.body, 'set', Comment.on_changed_body)
 
 
 # ---------------- Helpers ----------------
@@ -174,16 +266,8 @@ def permission_required(permission):
 
 def admin_required(f):
     return permission_required(Permission.ADMIN)(f)
-def is_administrator(self):
-    return self.can(Permission.ADMIN)
 
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
-
-
-
-
-
-

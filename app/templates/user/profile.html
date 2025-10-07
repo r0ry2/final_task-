@@ -1,23 +1,44 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>{{ user.username }}'s Profile</h2>
+<div class="container mt-4">
+  <h2>{{ user.username }}'s Profile</h2>
+  <hr>
 
-<p><strong>Email:</strong> {{ user.email }}</p>
-<p><strong>Confirmed:</strong> {{ "Yes" if user.confirmed else "No" }}</p>
-<p><strong>Role:</strong> {{ user.role.name if user.role else "No role" }}</p>
+  <div class="mb-3">
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <p><strong>Confirmed:</strong> {{ "Yes" if user.confirmed else "No" }}</p>
+    <p><strong>Role:</strong> {{ user.role.name if user.role else "No role" }}</p>
+  </div>
 
-<hr>
-<p><strong>Name:</strong> {{ user.name or "Not set" }}</p>
-<p><strong>Location:</strong> {{ user.location or "Unknown" }}</p>
-<p><strong>Bio:</strong> {{ user.bio or "No bio yet." }}</p>
-<p><strong>Member since:</strong> {{ user.member_since.strftime("%Y-%m-%d") }}</p>
-<p><strong>Last seen:</strong> {{ user.last_seen.strftime("%Y-%m-%d %H:%M") }}</p>
+  <div class="mb-3">
+    <p><strong>Name:</strong> {{ user.name or "Not set" }}</p>
+    <p><strong>Location:</strong> {{ user.location or "Unknown" }}</p>
+    <p><strong>Bio:</strong> {{ user.bio or "No bio yet." }}</p>
+    <p><strong>Member since:</strong> {{ user.member_since.strftime("%Y-%m-%d") }}</p>
+    <p><strong>Last seen:</strong> {{ user.last_seen.strftime("%Y-%m-%d %H:%M") }}</p>
+    
+  </div>
 
-{% if current_user == user %}
-    <a href="{{ url_for('main.edit_profile') }}">✏️ Edit Profile</a>
-{% endif %}
+  <p>
+    <strong>{{ user.followers.count() }}</strong> Followers •
+    <strong>{{ user.followed.count() }}</strong> Following
+  </p>
+
+  {% if current_user.is_authenticated and current_user != user %}
+    {% if current_user.is_following(user) %}
+      <form action="{{ url_for('main.unfollow', username=user.username) }}" method="post" style="display:inline;">
+        <button class="btn btn-outline-danger btn-sm">Unfollow</button>
+      </form>
+    {% else %}
+      <form action="{{ url_for('main.follow', username=user.username) }}" method="post" style="display:inline;">
+        <button class="btn btn-outline-primary btn-sm">Follow</button>
+      </form>
+    {% endif %}
+  {% endif %}
+
+  {% if current_user == user %}
+    <a href="{{ url_for('main.edit_profile') }}" class="btn btn-link">✏️ Edit Profile</a>
+  {% endif %}
+</div>
 {% endblock %}
-
-
-
