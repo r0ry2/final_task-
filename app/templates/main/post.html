@@ -1,18 +1,49 @@
 {% extends "base.html" %}
+{% block title %}Post {{ post.id }}{% endblock %}
 {% block content %}
-  <h2>Post #{{ post.id }}</h2>
-  <p class="meta">
-    By <a href="{{ url_for('main.user_profile', username=post.author.username) }}">
-      {{ post.author.username }}
-    </a>
-    • {{ post.timestamp.strftime('%Y-%m-%d %H:%M') }}
-  </p>
+<div class="container mt-4">
 
-  <div class="body">
-    {{ post.body_html|safe }}
+  <div class="card mb-4">
+    <div class="card-body">
+      <h4 class="card-title">{{ post.author.username }}</h4>
+      <p class="card-text">{{ post.body_html | safe }}</p>
+      <p class="text-muted small">{{ post.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+    </div>
   </div>
 
-  {% if current_user.is_authenticated and (current_user == post.author or current_user.is_administrator()) %}
-    <p><a href="{{ url_for('main.edit_post', id=post.id) }}">✏️ Edit post</a></p>
+  <!-- ✅ نموذج كتابة تعليق -->
+  {% if current_user.is_authenticated %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+          {{ form.body.label(class="form-label") }}
+          {{ form.body(class="form-control", rows=3) }}
+        </div>
+        <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <p><a href="{{ url_for('auth.login') }}">Login</a> to add a comment.</p>
   {% endif %}
+
+  <!-- ✅ عرض التعليقات -->
+  <h5 class="mt-4">Comments ({{ comments|length }})</h5>
+  {% if comments %}
+    {% for comment in comments %}
+      <div class="card mb-2">
+        <div class="card-body">
+          <p class="mb-1"><strong>{{ comment.author.username }}</strong></p>
+          <p>{{ comment.body_html | safe }}</p>
+          <p class="text-muted small">{{ comment.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted">No comments yet. Be the first to comment!</p>
+  {% endif %}
+
+</div>
 {% endblock %}

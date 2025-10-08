@@ -31,3 +31,13 @@ class EditProfileForm(FlaskForm):
     location = StringField("Location", validators=[Length(0, 64)])
     bio = TextAreaField("Bio", validators=[Length(0, 200)])
     submit = SubmitField("Save Changes")
+
+# ---------------- نموذج إضافة تعليق ----------------
+
+
+class CommentForm(FlaskForm):
+    body = TextAreaField('Add a comment', validators=[
+        DataRequired(message="Please write something!"),
+        Length(1, 500)
+    ])
+    submit = SubmitField('Post Comment')

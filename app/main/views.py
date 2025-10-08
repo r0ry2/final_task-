@@ -8,11 +8,8 @@ from .forms import PostForm, EditProfileForm
 from flask import abort
 from app.models import User
 from .forms import AdminResetPasswordForm
+from ..models import Comment
 
-
-
-
-# ---------------- Index (عرض البوستات) ----------------
 # ---------------- Index (عرض البوستات) ----------------
 @main.route('/', methods=['GET', 'POST'])
 def index():
@@ -66,10 +63,26 @@ def show_followed():
     return resp
 
 # ---------------- عرض بوست واحد ----------------
-@main.route('/post/<int:id>')
+@main.route('/post/<int:id>', methods=['GET', 'POST'])
 def post(id):
+    from .forms import CommentForm
     post = Post.query.get_or_404(id)
-    return render_template('main/post.html', post=post)
+    form = CommentForm()
+
+    if form.validate_on_submit():
+        comment = Comment(
+            body=form.body.data,
+            post=post,
+            author=current_user._get_current_object()
+        )
+        db.session.add(comment)
+        db.session.commit()
+        flash("✅ Your comment has been added.")
+        return redirect(url_for('main.post', id=post.id))
+
+    comments = post.comments.order_by(Comment.timestamp.asc()).all()
+    return render_template('main/post.html', post=post, form=form, comments=comments)
+
 
 
 # ---------------- تعديل بوست ----------------
@@ -224,3 +237,41 @@ def search_user():
             return redirect(url_for('main.search_user'))
         return redirect(url_for('main.user_profile', username=user.username))
     return render_template('main/search_user.html', form=form)
+
+# ---------------- إدارة التعليقات (Moderation) ----------------
+@main.route('/moderate')
+@login_required
+def moderate():
+    if not current_user.can(Permission.MODERATE):
+        abort(403)
+    page = request.args.get('page', 1, type=int)
+    pagination = Comment.query.order_by(Comment.timestamp.desc()).paginate(
+        page=page, per_page=current_app.config.get('COMMENTS_PER_PAGE', 10), error_out=False)
+    comments = pagination.items
+    return render_template('main/moderate.html', comments=comments, pagination=pagination, page=page)
+
+
+@main.route('/moderate/enable/<int:id>')
+@login_required
+def moderate_enable(id):
+    if not current_user.can(Permission.MODERATE):
+        abort(403)
+    comment = Comment.query.get_or_404(id)
+    comment.disabled = False
+    db.session.add(comment)
+    db.session.commit()
+    flash("✅ Comment enabled.")
+    return redirect(url_for('main.moderate', page=request.args.get('page', 1)))
+
+
+@main.route('/moderate/disable/<int:id>')
+@login_required
+def moderate_disable(id):
+    if not current_user.can(Permission.MODERATE):
+        abort(403)
+    comment = Comment.query.get_or_404(id)
+    comment.disabled = True
+    db.session.add(comment)
+    db.session.commit()
+    flash("🚫 Comment disabled.")
+    return redirect(url_for('main.moderate', page=request.args.get('page', 1)))
